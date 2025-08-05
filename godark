@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[*] Starting Godark: Declarative Mac Setup"
+
+# Step 1: Install Nix if missing
+if ! command -v nix &>/dev/null; then
+  echo "[+] Installing Nix..."
+  curl -L https://nixos.org/nix/install | sh
+  # Load nix immediately
+  source ~/.nix-profile/etc/profile.d/nix.sh
+else
+  echo "[✓] Nix already installed."
+fi
+
+# Step 2: Enable experimental features
+mkdir -p ~/.config/nix
+if ! grep -q "flakes" ~/.config/nix/nix.conf 2>/dev/null; then
+  echo "[+] Enabling flakes..."
+  echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
+else
+  echo "[✓] Flakes already enabled."
+fi
+
+# Step 3: Install nix-darwin if needed
+if ! command -v darwin-rebuild &>/dev/null; then
+  echo "[+] Installing nix-darwin..."
+  nix build github:lnl7/nix-darwin --extra-experimental-features "nix-command flakes"
+  ./result/sw/bin/darwin-installer
+else
+  echo "[✓] nix-darwin already installed."
+fi
+
+# Step 4: Run darwin-rebuild switch with your flake
+echo "[*] Running darwin-rebuild..."
+darwin-rebuild switch --flake .#macbook
+
+echo "[✓] Done. Your Mac is now configured via flake."
+
