@@ -1,26 +1,45 @@
-{ config, pkgs, ... }: {
-  system.stateVersion = 4;
+{ pkgs, ... }: {
+
+  ############################################################
+  # Core
+  system.stateVersion = 6;
+  system.primaryUser  = "mac";
+  users.users.mac.home = "/Users/mac";
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
-
   programs.zsh.enable = true;
-  environment.systemPackages = with pkgs; [
-    utm
-    git
-    vim
-    dockutil
-  ];
 
-  # Reset the Dock to minimal items
-  system.activationScripts.set-dock.text = ''
-    echo "Resetting dock..."
-    dockutil --remove all --no-restart
-    dockutil --add "/System/Applications/Finder.app" --no-restart
-    dockutil --add "/System/Applications/Launchpad.app" --no-restart
-    dockutil --add "/System/Applications/System Settings.app" --no-restart
-    dockutil --add "/Applications/Terminal.app" --no-restart
-    dockutil --add "/Applications/Safari.app" --no-restart
-    dockutil --add "/Applications/UTM.app"
-  '';
+  ############################################################
+  # Hostname / Bonjour
+  networking = {
+    hostName      = "macbook";
+    localHostName = "macbook";
+    computerName  = "mac@macbook";
+  };
+
+  ############################################################
+  # Homebrew apps
+  homebrew = {
+    enable          = true;
+    global.brewfile = true;
+    brews           = [ "dockutil" ];
+    casks           = [
+      "brave-browser"
+      "protonvpn"
+      "proton-pass"
+      "proton-mail"
+      "utm"
+    ];
+  };
+
+  ############################################################
+  # Dock reset & populate  (runs every switch)
+  system.activationScripts.manageDock = {
+    supportsDryRun = false;                # ensure it always executes
+    text           = builtins.readFile ./dock.sh;
+  };
+
+  ############################################################
+  environment.systemPackages = [ ];
 }
 

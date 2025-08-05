@@ -1,72 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# === Self-install godark globally if not already in PATH ===
-if [[ "$(basename "$0")" != "godark" || ! -x "$(command -v godark)" ]]; then
-  echo "[+] Installing godark as a global command..."
+echo "[*] Godark – one-shot declarative macOS bootstrap"
 
-  TARGET="/usr/local/bin/godark"
+REAL_USER=$(logname)                       # logged-in user
+USER_HOME=$(dscl . -read /Users/$REAL_USER NFSHomeDirectory | awk '{print $2}')
+FLAKE="$USER_HOME/mac-config#macbook"
 
-  if [[ -w "$(dirname "$TARGET")" ]]; then
-    cp "$0" "$TARGET"
-    chmod +x "$TARGET"
-    echo "[✓] Installed godark to $TARGET"
-  else
-    echo "[!] Cannot write to $TARGET — trying sudo..."
-    sudo mkdir -p /usr/local/bin
-    sudo cp "$0" "$TARGET"
-    sudo chmod +x "$TARGET"
-    echo "[✓] Installed godark to $TARGET with sudo"
-  fi
-
-  echo "[!] Re-run 'godark' now that it's installed."
-  exit 0
-fi
-
-echo "[*] Starting Godark: Declarative Mac Setup"
-
-# Step 1: Install Nix if missing
+#──────────────────────────────── 1. Nix ────────────────────────────
 if ! command -v nix &>/dev/null; then
-  echo "[+] Installing Nix..."
-  curl -L https://nixos.org/nix/install | sh
-  source "$HOME/.nix-profile/etc/profile.d/nix.sh"
+  echo "[+] Installing Nix…"
+  /bin/bash -c "$(curl -L https://nixos.org/nix/install)" -- --daemon
+  . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 else
-  echo "[✓] Nix already installed."
+  echo "[✓] Nix present."
 fi
 
-# Step 2: Enable flakes
-mkdir -p ~/.config/nix
-if ! grep -q "flakes" ~/.config/nix/nix.conf 2>/dev/null; then
-  echo "[+] Enabling flakes..."
-  echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
-else
-  echo "[✓] Flakes already enabled."
-fi
+#────────────────────────────── 2. Flakes ───────────────────────────
+sudo mkdir -p /etc/nix
+grep -q flakes /etc/nix/nix.conf 2>/dev/null || \
+  echo "experimental-features = nix-command flakes" | sudo tee -a /etc/nix/nix.conf >/dev/null
 
-# Step 3: Install nix-darwin if missing
+#────────────────────────── 3. nix-darwin ───────────────────────────
 if ! command -v darwin-rebuild &>/dev/null; then
-  echo "[+] Installing nix-darwin..."
-  BUILD_DIR=$(mktemp -d)
-  echo "[*] Building nix-darwin in $BUILD_DIR"
-  nix build github:lnl7/nix-darwin --out-link "$BUILD_DIR/result" --extra-experimental-features "nix-command flakes"
-
-  INSTALLER="$BUILD_DIR/result/sw/bin/darwin-installer"
-
-  if [[ ! -x "$INSTALLER" ]]; then
-    echo "[!] Failed to build nix-darwin."
-    echo "    Check your internet connection or GitHub availability and try again:"
-    echo "    nix build github:lnl7/nix-darwin --extra-experimental-features \"nix-command flakes\""
-    exit 1
-  fi
-
-  "$INSTALLER"
-else
-  echo "[✓] nix-darwin already installed."
+  echo "[+] Installing nix-darwin…"
+  nix run github:lnl7/nix-darwin -- switch --flake "$FLAKE"
 fi
 
-# Step 4: Run darwin-rebuild
-echo "[*] Running darwin-rebuild switch..."
-darwin-rebuild switch --flake "$HOME/mac-config#macbook"
+#───────────────────────── 4. Homebrew  ─────────────────────────────
+if ! command -v brew &>/dev/null; then
+  echo "[+] Installing Homebrew (non-interactive)…"
+  NONINTERACTIVE=1 CI=1 /bin/bash -c \
+    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
 
-echo "[✓] Done. Your Mac is now configured via Nix."
+#──  fix ~/.zprofile ownership & append brew shellenv  ──────────────
+sudo -u "$REAL_USER" bash -c '
+  touch ~/.zprofile
+  grep -q "brew shellenv" ~/.zprofile 2>/dev/null || \
+    echo "eval \"$(/opt/homebrew/bin/brew shellenv)\"" >> ~/.zprofile
+'
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+echo "[✓] Homebrew ready: $(brew --version | head -n1)"
+
+#────────────────────── 5. Switch system state  ────────────────────
+echo "[*] Running darwin-rebuild switch…"
+sudo darwin-rebuild switch --flake "$FLAKE" --impure
+
+echo "[✓] All done.  Dock pruned, Brave + Proton VPN + UTM installed."
+echo "↪  Re-open a new terminal or reboot to pick up PATH."
 
