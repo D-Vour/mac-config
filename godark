@@ -46,16 +46,20 @@ fi
 # Step 3: Install nix-darwin if missing
 if ! command -v darwin-rebuild &>/dev/null; then
   echo "[+] Installing nix-darwin..."
-  nix build github:lnl7/nix-darwin --extra-experimental-features "nix-command flakes"
+  BUILD_DIR=$(mktemp -d)
+  echo "[*] Building nix-darwin in $BUILD_DIR"
+  nix build github:lnl7/nix-darwin --out-link "$BUILD_DIR/result" --extra-experimental-features "nix-command flakes"
 
-  if [[ ! -f ./result/sw/bin/darwin-installer ]]; then
+  INSTALLER="$BUILD_DIR/result/sw/bin/darwin-installer"
+
+  if [[ ! -x "$INSTALLER" ]]; then
     echo "[!] Failed to build nix-darwin."
     echo "    Check your internet connection or GitHub availability and try again:"
     echo "    nix build github:lnl7/nix-darwin --extra-experimental-features \"nix-command flakes\""
     exit 1
   fi
 
-  ./result/sw/bin/darwin-installer
+  "$INSTALLER"
 else
   echo "[✓] nix-darwin already installed."
 fi
