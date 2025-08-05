@@ -1,19 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# === Self-install godark globally if not already in PATH ===
+if [[ "$(basename "$0")" != "godark" || ! -x "$(command -v godark)" ]]; then
+  echo "[+] Installing godark as a global command..."
+
+  TARGET="/usr/local/bin/godark"
+
+  if [[ -w "$(dirname "$TARGET")" ]]; then
+    cp "$0" "$TARGET"
+    chmod +x "$TARGET"
+    echo "[✓] Installed godark to $TARGET"
+  else
+    echo "[!] Cannot write to $TARGET — trying sudo..."
+    sudo mkdir -p /usr/local/bin
+    sudo cp "$0" "$TARGET"
+    sudo chmod +x "$TARGET"
+    echo "[✓] Installed godark to $TARGET with sudo"
+  fi
+
+  echo "[!] Re-run 'godark' now that it's installed."
+  exit 0
+fi
+
 echo "[*] Starting Godark: Declarative Mac Setup"
 
 # Step 1: Install Nix if missing
 if ! command -v nix &>/dev/null; then
   echo "[+] Installing Nix..."
   curl -L https://nixos.org/nix/install | sh
-  # Load nix immediately
-  source ~/.nix-profile/etc/profile.d/nix.sh
+  source "$HOME/.nix-profile/etc/profile.d/nix.sh"
 else
   echo "[✓] Nix already installed."
 fi
 
-# Step 2: Enable experimental features
+# Step 2: Enable flakes
 mkdir -p ~/.config/nix
 if ! grep -q "flakes" ~/.config/nix/nix.conf 2>/dev/null; then
   echo "[+] Enabling flakes..."
@@ -22,18 +43,26 @@ else
   echo "[✓] Flakes already enabled."
 fi
 
-# Step 3: Install nix-darwin if needed
+# Step 3: Install nix-darwin if missing
 if ! command -v darwin-rebuild &>/dev/null; then
   echo "[+] Installing nix-darwin..."
   nix build github:lnl7/nix-darwin --extra-experimental-features "nix-command flakes"
+
+  if [[ ! -f ./result/sw/bin/darwin-installer ]]; then
+    echo "[!] Failed to build nix-darwin."
+    echo "    Check your internet connection or GitHub availability and try again:"
+    echo "    nix build github:lnl7/nix-darwin --extra-experimental-features \"nix-command flakes\""
+    exit 1
+  fi
+
   ./result/sw/bin/darwin-installer
 else
   echo "[✓] nix-darwin already installed."
 fi
 
-# Step 4: Run darwin-rebuild switch with your flake
-echo "[*] Running darwin-rebuild..."
+# Step 4: Run darwin-rebuild
+echo "[*] Running darwin-rebuild switch..."
 darwin-rebuild switch --flake .#macbook
 
-echo "[✓] Done. Your Mac is now configured via flake."
+echo "[✓] Done. Your Mac is now configured via Nix."
 
