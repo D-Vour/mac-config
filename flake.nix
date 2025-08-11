@@ -12,7 +12,7 @@
       system  = "aarch64-darwin";
       modules = [
         ./configuration.nix
-        ./features/mic-toggle.nix
+        ./features/leader.nix
       ];
     };
   };

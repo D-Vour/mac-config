@@ -15,7 +15,7 @@
   };
 
   # System packages
-  environment.systemPackages = with pkgs; [
+   environment.systemPackages = with pkgs; [
     tree
   ];
 
@@ -39,6 +39,5 @@
     text           = builtins.readFile ./dock.sh;
   };
 
-  environment.systemPackages = [ ];
 }
 
