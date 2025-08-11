@@ -9,8 +9,11 @@
 
   outputs = { self, nixpkgs, darwin, ... }: {
     darwinConfigurations.macbook = darwin.lib.darwinSystem {
-      system  = "aarch64-darwin";             # change to x86_64-darwin on Intel
-      modules = [ ./configuration.nix ];
+      system  = "aarch64-darwin";
+      modules = [
+        ./configuration.nix
+        ./features/mic-toggle.nix
+      ];
     };
   };
 }

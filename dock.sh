@@ -11,6 +11,6 @@ dockutil --add "/Applications/ProtonVPN.app"                     --no-restart
 dockutil --add "/Applications/Proton Pass.app"                   --no-restart
 dockutil --add "/Applications/Proton Mail.app"                   --no-restart
 dockutil --add "/Applications/UTM.app"                           --no-restart
-
+dockutil --add "/Applications/Discord.app"                       --no-restart
 killall Dock   # final refresh
 

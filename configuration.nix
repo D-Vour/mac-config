@@ -1,6 +1,5 @@
 { pkgs, ... }: {
 
-  ############################################################
   # Core
   system.stateVersion = 6;
   system.primaryUser  = "mac";
@@ -9,16 +8,18 @@
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   programs.zsh.enable = true;
 
-  ############################################################
-  # Hostname / Bonjour
   networking = {
     hostName      = "macbook";
     localHostName = "macbook";
     computerName  = "mac@macbook";
   };
 
-  ############################################################
-  # Homebrew apps
+  # System packages
+  environment.systemPackages = with pkgs; [
+    tree
+  ];
+
+
   homebrew = {
     enable          = true;
     global.brewfile = true;
@@ -29,17 +30,15 @@
       "proton-pass"
       "proton-mail"
       "utm"
+      "discord"
     ];
   };
 
-  ############################################################
-  # Dock reset & populate  (runs every switch)
   system.activationScripts.manageDock = {
-    supportsDryRun = false;                # ensure it always executes
+    supportsDryRun = false;
     text           = builtins.readFile ./dock.sh;
   };
 
-  ############################################################
   environment.systemPackages = [ ];
 }
 
